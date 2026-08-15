@@ -1,0 +1,16 @@
+[server]
+runOnSave = true
+
+# NOTE: server.address is deliberately NOT set here.
+#
+# Streamlit Community Cloud runs the app in a container that must bind 0.0.0.0;
+# pinning localhost in this file would break the deployment. Local privacy is
+# handled by the launchers instead, which pass --server.address=localhost, so a
+# double-clicked run stays on loopback while a cloud run is unaffected.
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "dark"
+primaryColor = "#4A90E2"

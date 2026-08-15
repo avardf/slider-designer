@@ -1,0 +1,18 @@
+[project]
+name = "webapp"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=3.0.3",
+    "pandas-stubs~=3.0.3",
+    "plotly>=6.8.0",
+    "scipy>=1.18.0",
+    "scipy-stubs~=1.18.0",
+    "streamlit>=1.58.0",
+]
+
+[dependency-groups]
+# matplotlib is only needed by app_matplotlib.bak.py, the pre-Plotly fallback.
+dev = [
+    "matplotlib>=3.11.0",
+]

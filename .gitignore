@@ -1,0 +1,22 @@
+# Virtual environment — rebuilt from uv.lock / requirements.txt, never committed
+.venv/
+
+# Python artefacts
+__pycache__/
+*.py[oc]
+build/
+dist/
+*.egg-info
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Local backups — keep these out of the deployed repo
+*_backup_*/
+*.bak
+
+# Distribution copies built for hand-off, not source
+SliderDesigner/
+*.zip

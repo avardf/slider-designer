@@ -1,0 +1,166 @@
+# Slider Designer — pinned Python dependencies
+#
+# The recommended way to run this app is uv, which reads pyproject.toml and
+# uv.lock directly and needs none of this file:
+#
+#     uv run streamlit run app.py
+#
+# This file is for environments where uv is not an option (a locked-down
+# machine, an internal mirror that only speaks pip, an existing shared venv).
+# Versions are exported from uv.lock, so they are exactly the ones the app was
+# built and tested against.
+#
+#     python -m venv .venv
+#     # Windows:      .venv\Scripts\activate
+#     # macOS/Linux:  source .venv/bin/activate
+#     pip install -r requirements.txt
+#     streamlit run app.py
+#
+# REQUIRES PYTHON 3.12 OR NEWER. Check with `python3 --version` first. macOS
+# ships an older Python (3.9), and on that version pip fails with a misleading
+# message — "Could not find a version that satisfies the requirement
+# altair==..." — rather than saying your Python is too old. If you see that,
+# the fix is a newer Python, not a different package version.
+#
+# matplotlib is deliberately absent — it is only needed by the frozen fallback
+# app_matplotlib.bak.py, not by the app itself. Install it separately if you
+# want to run that file.
+#
+# To regenerate after changing dependencies:
+#
+#     uv export --format requirements-txt --no-hashes --no-dev --no-emit-project -o requirements.txt
+#
+altair==6.2.1
+    # via streamlit
+anyio==4.14.0
+    # via
+    #   starlette
+    #   streamlit
+attrs==26.1.0
+    # via
+    #   jsonschema
+    #   referencing
+blinker==1.9.0
+    # via streamlit
+cachetools==7.1.4
+    # via streamlit
+certifi==2026.6.17
+    # via requests
+charset-normalizer==3.4.7
+    # via requests
+click==8.4.1
+    # via
+    #   streamlit
+    #   uvicorn
+colorama==0.4.6 ; sys_platform == 'win32'
+    # via click
+gitdb==4.0.12
+    # via gitpython
+gitpython==3.1.50
+    # via streamlit
+h11==0.16.0
+    # via uvicorn
+httptools==0.8.0
+    # via streamlit
+idna==3.18
+    # via
+    #   anyio
+    #   requests
+itsdangerous==2.2.0
+    # via streamlit
+jinja2==3.1.6
+    # via
+    #   altair
+    #   pydeck
+jsonschema==4.26.0
+    # via altair
+jsonschema-specifications==2025.9.1
+    # via jsonschema
+markupsafe==3.0.3
+    # via jinja2
+narwhals==2.22.1
+    # via
+    #   altair
+    #   plotly
+numpy==2.4.6
+    # via
+    #   numpy-typing-compat
+    #   optype
+    #   pandas
+    #   pandas-stubs
+    #   pydeck
+    #   scipy
+    #   streamlit
+numpy-typing-compat==20260602.2.4
+    # via optype
+optype==0.18.0
+    # via scipy-stubs
+packaging==26.2
+    # via
+    #   altair
+    #   plotly
+    #   streamlit
+pandas==3.0.3
+    # via
+    #   streamlit
+    #   webapp
+pandas-stubs==3.0.3.260530
+    # via webapp
+pillow==12.2.0
+    # via streamlit
+plotly==6.8.0
+    # via webapp
+protobuf==7.35.1
+    # via streamlit
+pyarrow==24.0.0
+    # via streamlit
+pydeck==0.9.2
+    # via streamlit
+python-dateutil==2.9.0.post0
+    # via pandas
+python-multipart==0.0.32
+    # via streamlit
+referencing==0.37.0
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
+requests==2.34.2
+    # via streamlit
+rpds-py==2026.5.1
+    # via
+    #   jsonschema
+    #   referencing
+scipy==1.18.0
+    # via webapp
+scipy-stubs==1.18.0.0
+    # via webapp
+six==1.17.0
+    # via python-dateutil
+smmap==5.0.3
+    # via gitdb
+starlette==1.3.1
+    # via streamlit
+streamlit==1.58.0
+    # via webapp
+tenacity==9.1.4
+    # via streamlit
+toml==0.10.2
+    # via streamlit
+typing-extensions==4.15.0
+    # via
+    #   altair
+    #   anyio
+    #   optype
+    #   referencing
+    #   starlette
+    #   streamlit
+tzdata==2026.2 ; sys_platform == 'emscripten' or sys_platform == 'win32'
+    # via pandas
+urllib3==2.7.0
+    # via requests
+uvicorn==0.49.0
+    # via streamlit
+watchdog==6.0.0 ; sys_platform != 'darwin'
+    # via streamlit
+websockets==16.0
+    # via streamlit
