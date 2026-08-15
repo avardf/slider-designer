@@ -1,18 +1,21 @@
 [project]
-name = "webapp"
+name = "slider-designer"
 version = "0.1.0"
 requires-python = ">=3.12"
+
+# Runtime only — exactly what app.py imports. scipy was declared but never
+# imported (70 MB installed), so it was dropped; the *-stubs packages are
+# type-checker input, not runtime, so they live in dev.
 dependencies = [
     "pandas>=3.0.3",
-    "pandas-stubs~=3.0.3",
     "plotly>=6.8.0",
-    "scipy>=1.18.0",
-    "scipy-stubs~=1.18.0",
     "streamlit>=1.58.0",
 ]
 
 [dependency-groups]
 # matplotlib is only needed by app_matplotlib.bak.py, the pre-Plotly fallback.
+# The stubs packages only matter if you run a type checker over app.py.
 dev = [
     "matplotlib>=3.11.0",
+    "pandas-stubs~=3.0.3",
 ]
