@@ -81,16 +81,26 @@ On macOS/Linux use `export` instead of `set`.
 Ask for an offline bundle instead — the dependencies can be pre-downloaded and
 shipped alongside the app so nothing is fetched at run time.
 
-## Saving designs
+## The drawings
 
-Each candidate is drawn as its own chart, with its parameters printed underneath
-so any exported image is self-describing.
+The top 14 candidates are drawn, each as its own chart with its parameters
+printed underneath so any exported image is self-describing.
+
+Drawings render at **approximately life size** — millimetres are converted at
+96/25.4 px per mm, a CSS pixel being 1/96 inch. Browser zoom and display scaling
+shift the true physical size, so treat it as a proportion check rather than a
+dimensioned drawing.
+
+They flow into as many columns as the window allows: two on a wide screen
+(roughly 1400 px or more), one below that. Nothing is squashed either way.
+
+## Saving designs
 
 - **Hover a drawing** to reveal the Plotly toolbar. The camera icon downloads a
   3× resolution PNG; the filename encodes the design, e.g.
   `slider_n15_SW4.73_gap1.00_ang40.0.png`. The toolbar also gives zoom and pan.
-- **💾 Save** pins that candidate to the saved set — the drawing plus the full
-  parameter row, frozen at the moment you clicked.
+- **💾** pins that candidate to the saved set — the drawing plus the full
+  parameter row, frozen at the moment you clicked. **🗑️** removes a saved one.
 - **📌 Show saved Designs** pauses design activity and displays the saved
   snapshots instead. Sidebar changes do not affect them; each is redrawn with the
   slider height and chevron mode captured at save time. The count in the button
@@ -146,3 +156,25 @@ exhaustive on that grid, so a result of zero candidates means the constraints
 genuinely exclude that combination rather than the search having missed it. If a
 segment count returns nothing, the usual cause is the **Seg Width (SW)** limits
 being too narrow for the width that count requires.
+
+## Single vs double chevron
+
+`h` is the total slider height in both modes, and the drawing spans it in both.
+What differs is how far one diagonal edge climbs, which sets `tail`, the
+horizontal run of a segment's slanted end:
+
+| | one diagonal rises | `tail` |
+| --- | --- | --- |
+| Double chevron | `h/4` | `(h/4) / tan(angle)` |
+| Single chevron | `h/2` | `(h/2) / tan(angle)` |
+
+`tail` feeds `Stot`, `overlap`, `Ltot` and `Active_Length`, so the two modes
+report different numbers for the same slider height — as they should.
+
+One consequence that looks odd but is correct: with **end sensors off** both
+modes find the *same* candidate count, because `Active_Length` reduces to
+`(n-1) × (SW + horiz_gap)` and `tail` cancels out. With **end sensors on** it
+does not cancel, and the candidate sets genuinely differ.
+
+The reference implementation is `slider_dimensions_copy.ipynb`, which uses
+`ht = height * 2` for the single-chevron drawing.

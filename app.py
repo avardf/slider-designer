@@ -29,18 +29,65 @@ def chevron_icon(n=5, ht=10.0, segW=14.0, hz=3.0, ang=45.0, px=26):
             f'style="vertical-align:middle;margin:0 0.5rem;">'
             + "".join(polys) + '</svg>')
 
-# Minimal top padding
+# Tight header + compact read-only parameter chips, so the candidates table is
+# visible without scrolling when the app opens.
 st.markdown("""
     <style>
-        .block-container {padding-top: 1.5rem !important;}
+        /* Streamlit's fixed toolbar is 60px tall; less top padding than this
+           slides the title underneath it. The space saved on this screen comes
+           from the compact chips below, not from crowding the header. */
+        .block-container {padding-top: 4rem !important;}
         h1 {margin: 0 !important; padding: 0 !important;}
+
+        /* Trim the gap Streamlit leaves between stacked blocks. */
+        .block-container [data-testid="stVerticalBlock"] {gap: 0.45rem;}
+
+        /* Pull the Candidates heading up against the chips above it. */
+        .block-container h3 {margin-top: 0.3rem !important;
+                             margin-bottom: 0.2rem !important;}
+
+        /* Candidate and saved-design rows flow into as many columns as fit.
+           Each row needs ~500px (415px life-size drawing + button + gap), so
+           this gives two columns on a wide screen and cleanly falls back to
+           one on a narrow window instead of overflowing. */
+        .st-key-cand-grid,
+        .st-key-saved-grid {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fit, minmax(470px, 1fr));
+            gap: 0.4rem 1rem;
+            align-items: start;
+        }
+
+        .param-chip {
+            border: 1px solid rgba(250,250,250,0.14);
+            border-radius: 6px;
+            padding: 0.28rem 0.55rem;
+            line-height: 1.25;
+        }
+        .param-chip .k {
+            display: block;
+            font-size: 0.68rem;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            color: #9aa0a6;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .param-chip .v {
+            display: block;
+            font-size: 0.95rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
     </style>
 """, unsafe_allow_html=True)
 
-_icon = chevron_icon()
-st.markdown(f"<h2 style='text-align:center; margin:0;'>{_icon}Slider Designer{_icon}</h2>",
-            unsafe_allow_html=True)
-st.markdown("<p style='text-align:center; color:#aaa; margin-top:0;'>Configure parameters below</p>", unsafe_allow_html=True)
+_icon = chevron_icon(px=22)
+st.markdown(
+    f"<h2 style='text-align:center; margin:0 0 0.4rem 0; font-size:1.6rem;'>"
+    f"{_icon}Slider Designer{_icon}</h2>",
+    unsafe_allow_html=True)
 
 st.markdown("""
     <style>
@@ -54,9 +101,30 @@ st.markdown("""
 # ====================== SIDEBAR ======================
 with st.sidebar:
     with st.expander("Design Parameters", expanded=True):
-        h = st.number_input("Slider Height (y direction) (mm)",
-                            min_value=2.0, max_value=20.0, value=7.5, step=0.01, format="%.2f")
+        # Design type first — it decides which height box below is live.
+        Double_Chevron = st.checkbox("Double Chevron Design", value=True)
+
+        # One height box per design type, with the inactive one greyed out.
+        # Each keeps its own value, so switching design type does not silently
+        # reinterpret a height entered for the other one — the editable box is
+        # always the height actually driving the drawing and the maths.
+        colh1, colh2 = st.columns(2)
+        with colh1:
+            h_double = st.number_input("Double Chevron h (mm)",
+                                       min_value=2.0, max_value=20.0, value=7.5,
+                                       step=0.01, format="%.2f",
+                                       disabled=not Double_Chevron)
+        with colh2:
+            h_single = st.number_input("Single Chevron h (mm)",
+                                       min_value=2.0, max_value=20.0, value=7.5,
+                                       step=0.01, format="%.2f",
+                                       disabled=Double_Chevron)
+
+        h = h_double if Double_Chevron else h_single
         height = h / 4
+        st.caption(f"Using **{h:.2f} mm** total slider height "
+                   f"({'double' if Double_Chevron else 'single'} chevron). "
+                   f"Drawings render at approximately life size.")
 
         col1, col2 = st.columns(2)
         with col1:
@@ -90,14 +158,13 @@ with st.sidebar:
 
     st.divider()
 
-    Double_Chevron = st.checkbox("Double Chevron Design", value=True)
     EndSensorsActive = st.checkbox("End Sensors Active", value=False)
 
 # ====================== CALCULATIONS (cached — only reruns when an input changes) ======================
 @st.cache_data
 def find_candidates(height, Length_min, Length_max, n_min, n_max,
                     angle_min, angle_max, gap_min, gap_max,
-                    Sw_min, Sw_max, EndSensorsActive):
+                    Sw_min, Sw_max, EndSensorsActive, Double_Chevron):
     # Lists
     angle = [round(angle_min, 1)] if angle_min == angle_max else np.round(np.arange(angle_min, angle_max + 0.05, 0.1), 1).tolist()
     segments = [int(n_min)] if n_min == n_max else list(range(n_min, n_max + 1))
@@ -113,10 +180,18 @@ def find_candidates(height, Length_min, Length_max, n_min, n_max,
     # Both invert cleanly for sw, giving the exact valid interval per
     # combination. Widths are still stepped on the same 0.01 mm grid, and every
     # hit is re-checked against the window after rounding.
+    #
+    # tail is the horizontal run of a segment's slanted end, set by how far one
+    # diagonal edge climbs. A double chevron stacks four quarter-heights, so its
+    # diagonal rises h/4 (= height). A single chevron has one diagonal rising
+    # h/2, so it reaches twice as far sideways. Using the double-chevron value
+    # for both is what made the single-chevron table disagree with its drawing.
+    rise = height if Double_Chevron else height * 2
+
     candidates = []
     for n in segments:
         for ang in angle:
-            tail = height / math.tan(math.radians(ang))
+            tail = rise / math.tan(math.radians(ang))
             for g in gap:
                 horiz_gap = g / math.sin(math.radians(ang))
 
@@ -172,37 +247,44 @@ def find_candidates(height, Length_min, Length_max, n_min, n_max,
 with st.spinner("Calculating all possible combinations..."):
     df = find_candidates(height, Length_min, Length_max, n_min, n_max,
                          angle_min, angle_max, gap_min, gap_max,
-                         Sw_min, Sw_max, EndSensorsActive)
+                         Sw_min, Sw_max, EndSensorsActive, Double_Chevron)
 
 # ====================== MAIN AREA ======================
-c1, c2, c3 = st.columns(3, gap="small")
-
-with c1:
-    st.metric("Height", f"{h:.2f} mm")
-with c2:
-    st.metric("Length", f"{Length_min:.2f}–{Length_max:.2f}")
-with c3:
-    st.metric("Angle", f"{angle_min:.1f}–{angle_max:.1f}°")
-
-c4, c5, c6 = st.columns(3, gap="small")
-with c4:
-    st.metric("Segments", f"{n_min}–{n_max}")
-with c5:
-    st.metric("Air Gap", f"{gap_min:.2f}–{gap_max:.2f}")
-with c6:
-    st.metric("Seg Width (SW)", f"{Sw_min:.2f}–{Sw_max:.2f}")
-
-st.divider()
+# One compact row instead of two tall ones. Streamlit's default metric type is
+# display-sized (~2.25rem); at six read-only summary values that pushed the
+# candidates table below the fold on open.
+summary = [
+    ("Height", f"{h:.2f} mm"),
+    ("Length", f"{Length_min:.2f}–{Length_max:.2f}"),
+    ("Angle", f"{angle_min:.1f}–{angle_max:.1f}°"),
+    ("Segments", f"{n_min}–{n_max}"),
+    ("Air Gap", f"{gap_min:.2f}–{gap_max:.2f}"),
+    ("Seg Width (SW)", f"{Sw_min:.2f}–{Sw_max:.2f}"),
+]
+for col, (label, value) in zip(st.columns(6, gap="small"), summary):
+    col.markdown(
+        f"<div class='param-chip'><span class='k'>{label}</span>"
+        f"<span class='v'>{value}</span></div>",
+        unsafe_allow_html=True)
 
 # Results
 st.subheader("Candidates")
 if len(df) > 0:
-    st.dataframe(df, width='stretch', height=300)
+    # Taller than before: the compact header row freed the vertical space, and
+    # showing more rows on open was the point of tightening it.
+    st.dataframe(df, width='stretch', height=380)
     st.caption(f"{len(df)} candidates found")
 else:
     st.warning("No candidates. Widen ranges.")
 
 # ====================== DRAWING HELPERS ======================
+# A CSS pixel is defined as 1/96 inch, so this renders millimetres at close to
+# life size on a display at 100% zoom. Browser zoom and display scaling still
+# shift the true physical size, so treat it as approximate, not a substitute
+# for a dimensioned drawing.
+PX_PER_MM = 96 / 25.4
+
+
 def chevron_xy(n, a, segW, gap_v, height, double_chevron):
     """Vertex lists for one candidate's full chevron row.
 
@@ -217,10 +299,14 @@ def chevron_xy(n, a, segW, gap_v, height, double_chevron):
         d = pitch * k
 
         if not double_chevron:
-            ht = height * 0.8   # scaled down
+            # ht = height * 2 comes straight from slider_dimensions_copy.ipynb.
+            # It makes the single chevron span ht*2 = 4*height = h, the full
+            # slider height the user entered — same total as the double.
+            # Vertices are centred on y=0 so both modes share one viewport.
+            ht = height * 2
             x_pts = [0 + d, (ht/math.tan(math.radians(a))) + d, 0 + d,
                      segW + d, (ht/math.tan(math.radians(a))) + segW + d, segW + d]
-            y_pts = [0, ht, ht*2, ht*2, ht, 0]
+            y_pts = [-ht, 0, ht, ht, 0, -ht]
         else:
             x_pts = [0 + d, (height/math.tan(math.radians(a))) + d, 0 + d, segW + d, (height/math.tan(math.radians(a))) + segW + d, segW + d,
                      (height/math.tan(math.radians(a))) + segW + d, segW + d, 0 + d, (height/math.tan(math.radians(a))) + d, 0 + d]
@@ -233,9 +319,12 @@ def chevron_xy(n, a, segW, gap_v, height, double_chevron):
 
 
 def param_summary(p):
+    """Two short lines rather than one long one — at life-size the figure is
+    only ~415 px wide and a single line runs off the edge."""
     return (f"n={int(p['segments'])}   SW={p['SW']:.2f}   gap={p['gap']:.2f}   "
-            f"angle={p['angle']:.1f}°   pitch={p['pitch']:.3f}   "
-            f"overlap={p['overlap']:.2f}   Active_L={p['Active_Length']:.2f} mm")
+            f"angle={p['angle']:.1f}°<br>"
+            f"pitch={p['pitch']:.3f}   overlap={p['overlap']:.2f}   "
+            f"Active_L={p['Active_Length']:.2f} mm")
 
 
 def candidate_figure(p, height, double_chevron, x_range=None, tag=None):
@@ -255,17 +344,32 @@ def candidate_figure(p, height, double_chevron, x_range=None, tag=None):
         caption = f"<b>{tag}</b>   {caption}"
     fig.add_annotation(text=caption, xref='paper', yref='paper',
                        x=0, y=0, showarrow=False, xanchor='left', yanchor='top',
-                       yshift=-6,
-                       font=dict(color='#333333', size=11, family='monospace'))
+                       yshift=-6, align='left',
+                       font=dict(color='#333333', size=10, family='monospace'))
+
+    # Size the figure from the millimetre extents so the drawing prints at
+    # roughly life size, the way the original matplotlib output did. A CSS
+    # pixel is 1/96 inch by definition, so 1 mm = 96/25.4 px at 100% browser
+    # zoom. These sliders are small parts; drawing an 88 mm slider a metre
+    # wide made the proportions hard to judge.
+    x_span = x_range or extent
+    y_span = height * 4                      # full slider height h
+    # Top margin gives the hover toolbar its own band; at life size the drawing
+    # is only ~28 px tall and the toolbar would sit right on top of it.
+    # Bottom margin holds the two caption lines.
+    m_l, m_r, m_t, m_b = 10, 10, 26, 46
+    plot_w = x_span * PX_PER_MM
+    plot_h = y_span * PX_PER_MM
 
     # constrain='domain' shrinks the plot box to satisfy the 1:1 aspect lock.
     # The default ('range') instead inflates the axis ranges, which zooms the
     # drawing down to a sliver.
-    fig.update_xaxes(visible=False, range=[0, x_range or extent],
-                     constrain='domain')
-    fig.update_yaxes(visible=False, range=[-height*2, height*2],
+    fig.update_xaxes(visible=False, range=[0, x_span], constrain='domain')
+    fig.update_yaxes(visible=False, range=[-y_span / 2, y_span / 2],
                      scaleanchor='x', scaleratio=1, constrain='domain')
-    fig.update_layout(height=150, margin=dict(l=10, r=10, t=10, b=38),
+    fig.update_layout(width=round(plot_w + m_l + m_r),
+                      height=round(plot_h + m_t + m_b),
+                      margin=dict(l=m_l, r=m_r, t=m_t, b=m_b),
                       paper_bgcolor='white', plot_bgcolor='white', showlegend=False)
     return fig
 
@@ -337,18 +441,21 @@ if st.session_state.view_saved:
     x_max_saved = plot_x_max([s['params'] for s in st.session_state.saved_designs],
                              height, Double_Chevron)
 
+    saved_grid = st.container(key="saved-grid")
     for i, s in enumerate(st.session_state.saved_designs):
         p = s['params']
-        c_plot, c_btn = st.columns([10, 3], vertical_alignment="center")
-        with c_plot:
+        # Horizontal container rather than st.columns: the figure is a fixed
+        # pixel width now, so proportional columns would strand the button far
+        # to the right. This sizes to content and keeps them adjacent.
+        row = saved_grid.container(horizontal=True, vertical_alignment="center")
+        with row:
             # Redrawn with the height/chevron mode captured at save time.
             fig = candidate_figure(p, s['height'], s['double_chevron'],
                                    x_range=x_max_saved,
                                    tag=f"saved {s['saved_at']}")
-            st.plotly_chart(fig, width='stretch', key=f"saved_{i}",
+            st.plotly_chart(fig, width='content', key=f"saved_{i}",
                             config=chart_config(p))
-        with c_btn:
-            if st.button("🗑️ Remove", key=f"rm_{i}", width='stretch'):
+            if st.button("🗑️", key=f"rm_{i}", help="Remove this saved design"):
                 st.session_state.saved_designs.pop(i)
                 if not st.session_state.saved_designs:
                     st.session_state.view_saved = False
@@ -363,19 +470,22 @@ elif st.session_state.show_plots:
         st.caption("Hover a drawing for the toolbar — the camera icon saves a PNG "
                    "with its parameters. 💾 Save pins it to the saved set.")
 
-        df_plot = df.head(8).copy()   # limit for speed
+        df_plot = df.head(14).copy()   # limit for speed
         rows = [df_plot.loc[j] for j in range(len(df_plot))]
         x_max = plot_x_max(rows, height, Double_Chevron)
 
+        # Keyed container so CSS can lay the rows out as a responsive grid:
+        # two columns on a wide screen, one when there is not room. See the
+        # .st-key-cand-grid rule in the stylesheet at the top.
+        grid = st.container(key="cand-grid")
         for j, p in enumerate(rows):
-            c_plot, c_btn = st.columns([10, 3], vertical_alignment="center")
-            with c_plot:
+            row = grid.container(horizontal=True, vertical_alignment="center")
+            with row:
                 fig = candidate_figure(p, height, Double_Chevron,
                                        x_range=x_max, tag=f"candidate {j}")
-                st.plotly_chart(fig, width='stretch', key=f"cur_{j}",
+                st.plotly_chart(fig, width='content', key=f"cur_{j}",
                                 config=chart_config(p))
-            with c_btn:
-                if st.button("💾 Save", key=f"save_{j}", width='stretch'):
+                if st.button("💾", key=f"save_{j}", help="Save this design"):
                     st.session_state.saved_designs.append({
                         'saved_at': datetime.now().strftime("%H:%M:%S"),
                         'height': height,
